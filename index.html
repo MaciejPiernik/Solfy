@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Solfy</title>
   <style>
     :root{
@@ -29,11 +29,22 @@
     .view{display:none}
     .view.active{display:block}
 
+    /* LANDING */
+    .hero{display:grid; place-items:center; padding:12vh 12px 8vh}
+    .hero-logo{font-size:44px; font-weight:800; letter-spacing:0.5px}
+    .hero-sub{margin-top:8px; color:var(--muted); font-size:16px}
+    .hero-actions{margin-top:16px; display:flex; gap:10px}
+
     /* HOME */
     .home-actions{display:flex; flex-wrap:wrap; gap:8px}
     table{width:100%; border-collapse:collapse}
     th,td{border-bottom:1px solid #1f2937; padding:8px; font-size:14px; text-align:left}
     th{color:var(--muted); font-weight:600}
+    /* responsive cards for sessions on narrow screens */
+    .sessions-cards{display:grid; gap:8px}
+    .sess-card{background:var(--card); border:1px solid var(--rail); border-radius:12px; padding:10px}
+    .sess-top{display:flex; justify-content:space-between; gap:8px}
+    .sess-meta{display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:12px}
 
     /* CONFIG */
     .grid{display:grid; grid-template-columns:1fr; gap:10px}
@@ -42,14 +53,14 @@
     select,input[type="number"]{width:100%}
 
     /* PLAY (no scroll, two halves) */
-    .play{position:fixed; inset:0; display:none; height:100vh}
+    .play{position:fixed; inset:0; display:none; height:100dvh; min-height:100dvh}
     .play.active{display:grid; grid-template-rows:1fr 1fr; background:linear-gradient(180deg,#0b1026,#0f172a)}
     .play{ --playW: min(920px, 94vw); }
 
     .top{position:relative; display:flex; align-items:center; justify-content:center; padding:12px}
     .close-btn{position:absolute; top:10px; right:12px; width:56px; height:56px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:26px; background:#0b1226; border:1px solid var(--rail); color:#fff; box-shadow:var(--shadow)}
 
-    .staff-card{position:relative; background:linear-gradient(180deg,#0c142e,#0a1027); border:1px solid var(--rail); border-radius:var(--radius); box-shadow:var(--shadow); width:var(--playW); height:100%; display:flex; align-items:center; justify-content:center}
+    .staff-card{position:relative; background:linear-gradient(180deg,#0c142e,#0a1027); border:1px solid var(--rail); border-radius:var(--radius); box-shadow:var(--shadow); width:var(--playW); height:100%; margin:0 auto; display:flex; align-items:center; justify-content:center}
     .staff-wrap{position:relative; width:100%; height:100%; padding:12px}
     svg{width:100%; height:100%; display:block}
     .feedback{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none}
@@ -58,7 +69,7 @@
     .icon.bad{color:var(--danger)}
     .icon.show{opacity:1; transform:scale(1)}
 
-    .bottom{display:grid; grid-template-rows: 1fr auto; gap:8px; padding:12px}
+    .bottom{display:grid; grid-template-rows: 1fr auto; gap:8px; padding:12px; padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 12px)}
     .piano{position:relative; user-select:none; -webkit-user-select:none; touch-action:manipulation; background:linear-gradient(180deg,#0b1226,#090f20); border:1px solid var(--rail); border-radius:var(--radius); padding:12px; width:var(--playW); height:100%; margin:0 auto; display:flex; align-items:stretch}
     .kb{position:relative; height:100%; width:100%}
     .white-keys{display:grid; grid-template-columns:repeat(7,1fr); height:100%; gap:0; position:relative; z-index:1}
@@ -72,7 +83,7 @@
     .black.wrong{background:#7f1d1d}
 
     .progress{display:flex; align-items:center; gap:8px; width:var(--playW); margin:0 auto}
-    .bar{flex:1 1 auto; height:10px; background:#0b1226; border:1px solid var(--rail); border-radius:999px; overflow:hidden}
+    .bar{flex:1 1 auto; height:12px; background:#0b1226; border:1px solid var(--rail); border-radius:999px; overflow:hidden}
     .bar>span{display:block; height:100%; background:linear-gradient(90deg,#22c55e,#16a34a); width:0%}
     .muted{color:var(--muted)}
 
@@ -86,12 +97,26 @@
   </style>
 </head>
 <body>
+  <!-- LANDING VIEW (first-time users only) -->
+  <div class="wrap view" id="viewLanding">
+    <div class="hero panel" style="text-align:center">
+      <div class="hero-logo">Solfy</div>
+      <div class="hero-sub">Flashcards for musical notes</div>
+      <div class="hero-actions">
+        <button class="btn" id="landingPlay">Play ▶</button>
+        <button class="btn ghost" id="landingAbout">What is this?</button>
+      </div>
+    </div>
+    <section class="panel" id="landingAboutText" style="display:none">
+      Solfy is a tiny trainer that flashes a note and a one-octave piano. Tap the matching key. Fast feedback, adaptive drills, treble & bass.
+    </section>
+  </div>
+
   <!-- HOME VIEW -->
-  <div class="wrap view active" id="viewHome">
+  <div class="wrap view" id="viewHome">
     <header>
       <div>
         <h1>Solfy</h1>
-        <div class="badge">Piano trainer. Pick a session → play.</div>
       </div>
       <button class="btn" id="goConfig">➕ New session</button>
     </header>
@@ -209,16 +234,12 @@
   const SESSIONS_KEY = 'noteSprintSessions.v3_4';
 
   function mod(n,m){ return ((n % m) + m) % m; }
-  function fmtMs(ms){ if(ms===null || ms===undefined) return '-'; const s = ms/1000; return s<10? s.toFixed(2)+'s' : s.toFixed(1)+'s'; }
+  function fmtMs(ms){ if(ms===null || ms===undefined) return '–'; const s = ms/1000; return s<10? s.toFixed(2)+'s' : s.toFixed(1)+'s'; }
   function now(){ return performance.now(); }
 
   // Staff geometry — gap controls distance between lines; everything else derives from it
   const G = { gap: 28, noteW: 46, noteH: 26, stem: 90, currentTop: 26, currentLeft: 160, currentRight: 740 };
-  function syncGlyphSizes(){
-    G.noteH = Math.round(G.gap*0.95);
-    G.noteW = Math.round(G.noteH*1.55);
-    G.stem  = Math.round(G.gap*3.6);
-  }
+  function syncGlyphSizes(){ G.noteH = Math.round(G.gap*0.95); G.noteW = Math.round(G.noteH*1.55); G.stem  = Math.round(G.gap*3.6); }
   syncGlyphSizes();
 
   // Base diatonic indices
@@ -233,7 +254,9 @@
   // ---------- State ----------
   const els = {
     // views
-    vHome:document.getElementById('viewHome'), vConfig:document.getElementById('viewConfig'), vPlay:document.getElementById('viewPlay'),
+    vLanding:document.getElementById('viewLanding'), vHome:document.getElementById('viewHome'), vConfig:document.getElementById('viewConfig'), vPlay:document.getElementById('viewPlay'),
+    // landing
+    landingPlay:document.getElementById('landingPlay'), landingAbout:document.getElementById('landingAbout'), landingAboutText:document.getElementById('landingAboutText'),
     // home
     goConfig:document.getElementById('goConfig'), sortAcc:document.getElementById('sortAcc'), sortTime:document.getElementById('sortTime'), clearSessions:document.getElementById('clearSessions'), sessionsTableWrap:document.getElementById('sessionsTableWrap'), lastSummary:document.getElementById('lastSummary'),
     // config
@@ -251,142 +274,46 @@
     pcStats:{},
     session:{ mode:'infinite', target:null, active:false, startedAt:null, completed:0, id:null },
     sessions:[],
-    lastSummary:null
+    lastSummary:null,
+    sessionsSort:'acc',
+    isNarrow:null
   };
 
   // ---------- View switching ----------
   function showView(name){
-    els.vHome.classList.remove('active');
-    els.vConfig.classList.remove('active');
-    els.vPlay.classList.remove('active');
+    els.vLanding.classList.remove('active'); els.vHome.classList.remove('active'); els.vConfig.classList.remove('active'); els.vPlay.classList.remove('active');
+    if(name==='landing'){ els.vLanding.classList.add('active'); document.body.style.overflow='auto'; }
     if(name==='home'){ els.vHome.classList.add('active'); document.body.style.overflow='auto'; }
     if(name==='config'){ els.vConfig.classList.add('active'); document.body.style.overflow='auto'; }
-    if(name==='play'){ els.vPlay.classList.add('active'); document.body.style.overflow='hidden'; }
+    if(name==='play'){ els.vPlay.classList.add('active'); document.body.style.overflow='hidden'; ensureKeyboardLayout(); }
+  }
+
+  function ensureKeyboardLayout(){
+    // Reposition black keys once the keyboard is visible and sized
+    const run=()=>{ positionBlackKeys(); };
+    requestAnimationFrame(()=>{ run(); requestAnimationFrame(run); });
   }
 
   // ---------- Keyboard ----------
   const WHITE_ORDER = ['C','D','E','F','G','A','B'];
   const BLACK_AT = {0:1,1:3,3:6,4:8,5:10};
 
-  function buildKeyboard(){
-    els.whiteKeys.innerHTML='';
-    els.blackKeys.innerHTML='';
-    WHITE_ORDER.forEach((letter)=>{
-      const key=document.createElement('div');
-      key.className='white-key';
-      key.dataset.pc = NAT_PC[letter];
-      key.innerHTML=`<div class="key-label">${letter}</div>`;
-      key.addEventListener('pointerdown', onKeyPress);
-      els.whiteKeys.appendChild(key);
-    });
-    Object.entries(BLACK_AT).forEach(([whiteIndex,pc])=>{
-      const el=document.createElement('div');
-      el.className='black';
-      el.dataset.pc=pc;
-      el.addEventListener('pointerdown', onKeyPress);
-      els.blackKeys.appendChild(el);
-    });
-    positionBlackKeys();
-    window.addEventListener('resize', positionBlackKeys);
-  }
-  function positionBlackKeys(){
-    const W=els.kb.getBoundingClientRect().width;
-    const keyW=W/7;
-    const order=Object.keys(BLACK_AT).map(k=>parseInt(k,10));
-    order.forEach((wIndex,idx)=>{
-      const bk=els.blackKeys.children[idx];
-      const left=(wIndex+1)*keyW - (keyW*0.3);
-      bk.style.left=`${left}px`;
-      bk.style.width=`${keyW*0.6}px`;
-    });
-  }
+  function buildKeyboard(){ els.whiteKeys.innerHTML=''; els.blackKeys.innerHTML=''; WHITE_ORDER.forEach((letter)=>{ const key=document.createElement('div'); key.className='white-key'; key.dataset.pc = NAT_PC[letter]; key.innerHTML=`<div class="key-label">${letter}</div>`; key.addEventListener('pointerdown', onKeyPress); els.whiteKeys.appendChild(key); }); Object.entries(BLACK_AT).forEach(([whiteIndex,pc])=>{ const el=document.createElement('div'); el.className='black'; el.dataset.pc=pc; el.addEventListener('pointerdown', onKeyPress); els.blackKeys.appendChild(el); }); positionBlackKeys(); }
+  function positionBlackKeys(){ const W=els.kb.getBoundingClientRect().width; if(W<10) return; const keyW=W/7; const order=Object.keys(BLACK_AT).map(k=>parseInt(k,10)); order.forEach((wIndex,idx)=>{ const bk=els.blackKeys.children[idx]; const left=(wIndex+1)*keyW - (keyW*0.3); bk.style.left=`${left}px`; bk.style.width=`${keyW*0.6}px`; }); }
+  window.addEventListener('resize', ()=>{ positionBlackKeys(); maybeRerenderSessions(); });
+  window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ positionBlackKeys(); }, 200); });
 
   // ---------- SVG helpers ----------
   function clearSVG(){ els.svg.innerHTML=''; }
-  function svgEl(type, attrs){ const el = document.createElementNS('http://www.w3.org/2000/svg', type); for(const k in attrs){ el.setAttribute(k, attrs[k]); } return el; }
+  function svgEl(type, attrs){ const el = document.createElementNS('http://www.w3.org/2000/svg', type); for(const k in attrs) el.setAttribute(k, attrs[k]); return el; }
 
-  function drawStaff(clef){
-    clearSVG();
-    // responsive geometry based on actual rendered size
-    const vb = els.svg.viewBox.baseVal;
-    const px = els.svg.getBoundingClientRect();
-    // Scale staff height against card height; clamp
-    G.gap = Math.round(Math.max(22, Math.min(54, px.height * 0.11)));
-    syncGlyphSizes();
-
-    // Staff length fraction increases as the panel gets narrower (eat internal padding)
-    const frac = staffFraction(px.width); // 0.46..0.78
-    const width = vb.width, height = vb.height;
-    const staffW = width * frac;
-    const centerX = width/2;
-    const left = centerX - staffW/2;
-    const right = centerX + staffW/2;
-    G.currentLeft = left; G.currentRight = right;
-
-    // Center the five lines vertically
-    G.currentTop = (height - 4*G.gap)/2;
-    const top = G.currentTop, gap = G.gap;
-    const thk = Math.max(2, Math.round(gap/9));
-    for(let i=0;i<5;i++){
-      const y = top + i*gap;
-      els.svg.appendChild(svgEl('line',{x1:left,y1:y,x2:right,y2:y,stroke:'#cbd5e1','stroke-width':thk,'stroke-linecap':'round'}));
-    }
-    // Clef sizing & placement tuned per clef
-    const clefText = clef==='treble'?'𝄞':'𝄢';
-    const clefSize = Math.round(gap*5.2); // slightly larger so loops land on lines
-    const clefY = clef==='treble' ? (top + gap*2.65) : (top + gap*2.2);
-    const text = svgEl('text',{x:left+26,y:clefY,'font-size': String(clefSize),'text-anchor':'start','dominant-baseline':'middle',fill:'#cbd5e1','font-family':'serif'});
-    text.textContent = clefText; els.svg.appendChild(text);
-    // Barline
-    els.svg.appendChild(svgEl('line',{x1:left-8,y1:top-8,x2:left-8,y2:top+gap*4+8,stroke:'#94a3b8','stroke-width':Math.max(2,thk-1),'stroke-linecap':'round'}));
-  }
-  function staffFraction(pxWidth){
-    const min=360, max=920; // when narrow, use more horizontal room
-    const t = Math.max(0, Math.min(1, (max - pxWidth)/(max - min)));
-    return 0.46 + t*(0.78 - 0.46);
-  }
+  function drawStaff(clef){ clearSVG(); const vb=els.svg.viewBox.baseVal; const px=els.svg.getBoundingClientRect(); G.gap = Math.round(Math.max(22, Math.min(54, px.height * 0.11))); syncGlyphSizes(); const frac = staffFraction(px.width); const width=vb.width, height=vb.height; const staffW = width * frac; const centerX = width/2; const left = centerX - staffW/2; const right = centerX + staffW/2; G.currentLeft = left; G.currentRight = right; G.currentTop = (height - 4*G.gap)/2; const top=G.currentTop, gap=G.gap; const thk = Math.max(2, Math.round(gap/9)); for(let i=0;i<5;i++){ const y=top+i*gap; els.svg.appendChild(svgEl('line',{x1:left,y1:y,x2:right,y2:y,stroke:'#cbd5e1','stroke-width':thk,'stroke-linecap':'round'})); } const clefText = clef==='treble'?'𝄞':'𝄢'; const clefSize = Math.round(gap*5.2); const clefY = clef==='treble' ? (top + gap*2.65) : (top + gap*2.2); const text=svgEl('text',{x:left+26,y:clefY,'font-size': String(clefSize),'text-anchor':'start','dominant-baseline':'middle',fill:'#cbd5e1','font-family':'serif'}); text.textContent = clefText; els.svg.appendChild(text); els.svg.appendChild(svgEl('line',{x1:left-8,y1:top-8,x2:left-8,y2:top+gap*4+8,stroke:'#94a3b8','stroke-width':Math.max(2,thk-1),'stroke-linecap':'round'})); }
+  function staffFraction(pxWidth){ const min=360, max=920; const t = Math.max(0, Math.min(1, (max - pxWidth)/(max - min))); return 0.46 + t*(0.80 - 0.46); }
   function yForStep(step){ const bottomY = G.currentTop + 4*G.gap; return bottomY - step*(G.gap/2); }
 
-  function drawLedgerLines(step, x){
-    const half = (G.noteW*1.8)/2;
-    const thk = Math.max(2, Math.round(G.gap/9));
-    if(step < 0){
-      const count=Math.floor((-step)/2);
-      for(let i=1;i<=count;i++){
-        const k=-2*i; const y=yForStep(k);
-        els.svg.appendChild(svgEl('line',{x1:x-half,y1:y,x2:x+half,y2:y,stroke:'#cbd5e1','stroke-width':thk,'stroke-linecap':'round'}));
-      }
-    }
-    if(step > 8){
-      const count=Math.floor((step-8)/2);
-      for(let i=1;i<=count;i++){
-        const k=8+2*i; const y=yForStep(k);
-        els.svg.appendChild(svgEl('line',{x1:x-half,y1:y,x2:x+half,y2:y,stroke:'#cbd5e1','stroke-width':thk,'stroke-linecap':'round'}));
-      }
-    }
-  }
+  function drawLedgerLines(step, x){ const half = (G.noteW*1.8)/2; const thk = Math.max(2, Math.round(G.gap/9)); if(step < 0){ const count=Math.floor((-step)/2); for(let i=1;i<=count;i++){ const k=-2*i; const y=yForStep(k); els.svg.appendChild(svgEl('line',{x1:x-half,y1:y,x2:x+half,y2:y,stroke:'#cbd5e1','stroke-width':thk,'stroke-linecap':'round'})); } } if(step > 8){ const count=Math.floor((step-8)/2); for(let i=1;i<=count;i++){ const k=8+2*i; const y=yForStep(k); els.svg.appendChild(svgEl('line',{x1:x-half,y1:y,x2:x+half,y2:y,stroke:'#cbd5e1','stroke-width':thk,'stroke-linecap':'round'})); } } }
 
-  function drawNote(step, accidental='n'){
-    const x = (G.currentLeft + G.currentRight)/2;
-    const y = yForStep(step);
-    drawLedgerLines(step, x);
-    // note head
-    const head = svgEl('ellipse',{cx:x,cy:y,rx:G.noteW/2,ry:G.noteH/2,fill:'#e5e7eb'});
-    head.setAttribute('transform',`rotate(-20 ${x} ${y})`);
-    els.svg.appendChild(head);
-    // stem
-    const up = step <= 4;
-    const stemX = up ? x + (G.noteW/2) - 2 : x - (G.noteW/2) + 2;
-    const stemY2 = up ? y - G.stem : y + G.stem;
-    els.svg.appendChild(svgEl('line',{x1:stemX,y1:y,x2:stemX,y2:stemY2,stroke:'#e5e7eb','stroke-width':Math.max(2, Math.round(G.gap/9)),'stroke-linecap':'round'}));
-    // accidental sized to staff
-    if(accidental!=='n'){
-      const accSize = Math.round(G.gap*2.6);
-      const txt = svgEl('text',{x:x-54,y:y+6,'font-size': String(accSize),'text-anchor':'middle','dominant-baseline':'middle',fill:'#e5e7eb'});
-      txt.textContent = accidental==='sharp'?'♯':'♭';
-      els.svg.appendChild(txt);
-    }
-  }
+  function drawNote(step, accidental='n'){ const x = (G.currentLeft + G.currentRight)/2; const y = yForStep(step); drawLedgerLines(step, x); const head = svgEl('ellipse',{cx:x,cy:y,rx:G.noteW/2,ry:G.noteH/2,fill:'#e5e7eb'}); head.setAttribute('transform',`rotate(-20 ${x} ${y})`); els.svg.appendChild(head); const up = step <= 4; const stemX = up ? x + (G.noteW/2) - 2 : x - (G.noteW/2) + 2; const stemY2 = up ? y - G.stem : y + G.stem; els.svg.appendChild(svgEl('line',{x1:stemX,y1:y,x2:stemX,y2:stemY2,stroke:'#e5e7eb','stroke-width':Math.max(2, Math.round(G.gap/9)),'stroke-linecap':'round'})); if(accidental!=='n'){ const accSize = Math.round(G.gap*2.6); const txt = svgEl('text',{x:x-54,y:y+6,'font-size': String(accSize),'text-anchor':'middle','dominant-baseline':'middle',fill:'#e5e7eb'}); txt.textContent = accidental==='sharp'?'♯':'♭'; els.svg.appendChild(txt); } }
 
   // ---------- Adaptive weighting ----------
   function loadPcStats(){ try{ state.pcStats = JSON.parse(localStorage.getItem(PC_STATS_KEY)||'{}') || {}; }catch(e){ state.pcStats={}; } }
@@ -399,58 +326,14 @@
   // ---------- Cards ----------
   function pcPool(mode){ if(mode==='naturals') return NAT_PCS; if(mode==='sharps') return NAT_PCS.concat(SHARP_PCS); return ALL_PCS; }
 
-  function nextCard(){
-    const set=state.settings;
-    const clef = set.clef==='mixed' ? (Math.random()<0.5?'treble':'bass') : set.clef;
-    drawStaff(clef);
-    const steps=allowedSteps(clef,set.range);
-    const pcs=pcPool(set.noteset);
-    let pc, letterName, accidental, stepCandidates=[]; let guard=0;
-    do{
-      guard++; if(guard>100){ break; }
-      pc = pickPcWeighted(pcs, state.lastCard? state.lastCard.pc : null);
-      if(NAT_PCS.includes(pc)) letterName = Object.entries(NAT_PC).find(([L,v])=>v===pc)[0];
-      else if(set.noteset==='sharps') letterName = SHARP_DISPLAY[pc];
-      else letterName = Math.random()<0.5 ? SHARP_DISPLAY[pc] : FLAT_DISPLAY[pc];
-      accidental = accidentalFromName(letterName);
-      const baseLetter = letterName[0];
-      stepCandidates = stepsForLetter(clef, steps, baseLetter);
-    } while(stepCandidates.length===0 || (state.lastCard && state.lastCard.pc===pc && state.lastCard.step===stepCandidates[0]));
-
-    const step = stepCandidates[Math.floor(Math.random()*stepCandidates.length)];
-    const di = diatonicAtStep(clef, step);
-    state.card = { clef, step, letter:di.letter, accidental, pc, startedAt:now(), solved:false };
-    drawNote(step, accidental);
-    hideFeedback();
-    highlightKey(null,'clear');
-  }
+  function nextCard(){ const set=state.settings; const clef = set.clef==='mixed' ? (Math.random()<0.5?'treble':'bass') : set.clef; drawStaff(clef); const steps=allowedSteps(clef,set.range); const pcs=pcPool(set.noteset); let pc, letterName, accidental, stepCandidates=[]; let guard=0; do{ guard++; if(guard>100){ break; } pc = pickPcWeighted(pcs, state.lastCard? state.lastCard.pc : null); if(NAT_PCS.includes(pc)) letterName = Object.entries(NAT_PC).find(([L,v])=>v===pc)[0]; else if(set.noteset==='sharps') letterName = SHARP_DISPLAY[pc]; else letterName = Math.random()<0.5 ? SHARP_DISPLAY[pc] : FLAT_DISPLAY[pc]; accidental = accidentalFromName(letterName); const baseLetter = letterName[0]; stepCandidates = stepsForLetter(clef, steps, baseLetter); } while(stepCandidates.length===0 || (state.lastCard && state.lastCard.pc===pc && state.lastCard.step===stepCandidates[0])); const step = stepCandidates[Math.floor(Math.random()*stepCandidates.length)]; const di = diatonicAtStep(clef, step); state.card = { clef, step, letter:di.letter, accidental, pc, startedAt:now(), solved:false }; drawNote(step, accidental); hideFeedback(); highlightKey(null,'clear'); }
 
   // ---------- Interaction ----------
   function showGood(){ els.fbGood.classList.add('show'); els.fbBad.classList.remove('show'); }
   function showBad(){ els.fbBad.classList.add('show'); setTimeout(()=>els.fbBad.classList.remove('show'), 250); }
   function hideFeedback(){ els.fbGood.classList.remove('show'); els.fbBad.classList.remove('show'); }
 
-  function onKeyPress(ev){
-    ev.preventDefault();
-    const pc=parseInt(ev.currentTarget.dataset.pc,10);
-    if(!state.card || state.card.solved) return;
-    if(pc===state.card.pc){
-      const t=now()-state.card.startedAt;
-      state.card.solved=true;
-      recordAttempt(true, t);
-      highlightKey(pc,'good');
-      showGood();
-      state.lastCard = { pc: state.card.pc, step: state.card.step };
-      setTimeout(nextCard, 600);
-    } else {
-      state.stats.mistakes += 1;
-      recordPc(state.card.pc, false, null);
-      showBad();
-      highlightKey(pc,'bad');
-      state.stats.streak=0;
-      persistStats();
-    }
-  }
+  function onKeyPress(ev){ ev.preventDefault(); const pc=parseInt(ev.currentTarget.dataset.pc,10); if(!state.card || state.card.solved) return; if(pc===state.card.pc){ const t=now()-state.card.startedAt; state.card.solved=true; recordAttempt(true, t); highlightKey(pc,'good'); showGood(); state.lastCard = { pc: state.card.pc, step: state.card.step }; setTimeout(nextCard, 600); } else { state.stats.mistakes += 1; recordPc(state.card.pc, false, null); showBad(); highlightKey(pc,'bad'); state.stats.streak=0; persistStats(); } }
 
   function highlightKey(pc, mode){ const whites=[...els.whiteKeys.children], blacks=[...els.blackKeys.children], all=whites.concat(blacks); if(mode==='clear'){ all.forEach(k=>k.classList.remove('correct','wrong')); return; } all.forEach(k=>{ const is=parseInt(k.dataset.pc,10)===pc; k.classList.toggle(mode==='good'?'correct':'wrong', is); if(!is && mode!=='reveal'){ k.classList.remove('correct','wrong'); } }); }
 
@@ -477,36 +360,33 @@
   function updateProgress(){ const N = state.session.mode==='default'? 20 : (state.session.mode==='custom'? (state.session.target||0) : Infinity); const c = state.session.completed; els.progressLabel.textContent = (N===Infinity)? `${c} / ∞` : `${c} / ${N}`; els.barFill.style.width = (N===Infinity? 0 : Math.min(100, (c/N)*100)) + '%'; }
   function resetStats(keepRound){ state.stats = { cards:0, correct:0, mistakes:0, times:[], lastMs:null, streak:0, round: keepRound? state.stats.round : state.stats.round+1 }; persistStats(); }
 
-  // ---------- Home (sessions table & summary) ----------
-  function renderSessions(sortBy){ const list = state.sessions.slice(); const by = sortBy||'acc'; if(by==='acc') list.sort((a,b)=> b.accuracy - a.accuracy || (a.avgTime??1e9) - (b.avgTime??1e9)); else list.sort((a,b)=> (a.avgTime??1e9) - (b.avgTime??1e9) || b.accuracy - a.accuracy); const rows = list.slice(0,20).map(s=>`<tr><td>${new Date(s.when).toLocaleString()}</td><td>${s.mode}${s.mode!=='infinite'?` (${s.target})`:''}</td><td>${s.completed}</td><td>${s.correct}</td><td>${s.mistakes}</td><td>${s.accuracy}%</td><td>${s.avgTime?fmtMs(s.avgTime):'-'}</td><td>${fmtMs(s.totalTime)}</td></tr>`).join(''); els.sessionsTableWrap.innerHTML = `<table><thead><tr><th>Date</th><th>Mode</th><th>Cards</th><th>Correct</th><th>Mistakes</th><th>Accuracy</th><th>Avg time</th><th>Total</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="muted">No sessions yet.</td></tr>'}</tbody></table>`; }
-  function renderSummary(){ if(!state.lastSummary){ els.lastSummary.style.display='none'; return; } const s=state.lastSummary; els.lastSummary.style.display='block'; els.lastSummary.innerHTML = `<div style="display:flex; align-items:center; justify-content:space-between"><div><strong>Last session:</strong> ${new Date(s.when).toLocaleString()} — ${s.mode}${s.mode!=='infinite'?` (${s.target})`:''}</div><div class="pill">Accuracy <b>${s.accuracy}%</b> • Avg ${s.avgTime?fmtMs(s.avgTime):'-'} • Cards ${s.completed}</div></div>`; }
+  // ---------- Home (sessions table/cards & summary) ----------
+  function isNarrow(){ return window.innerWidth < 640; }
+  function renderSessions(sortBy){ state.sessionsSort = sortBy || state.sessionsSort || 'acc'; const list = state.sessions.slice(); const by = state.sessionsSort; if(by==='acc') list.sort((a,b)=> b.accuracy - a.accuracy || (a.avgTime??1e9) - (b.avgTime??1e9)); else list.sort((a,b)=> (a.avgTime??1e9) - (b.avgTime??1e9) || b.accuracy - a.accuracy); if(isNarrow()) renderSessionsCards(list); else renderSessionsTable(list); }
+  function renderSessionsTable(list){ const rows = list.slice(0,20).map(s=>`<tr><td>${new Date(s.when).toLocaleString()}</td><td>${s.mode}${s.mode!=='infinite'?` (${s.target})`:''}</td><td>${s.completed}</td><td>${s.correct}</td><td>${s.mistakes}</td><td>${s.accuracy}%</td><td>${s.avgTime?fmtMs(s.avgTime):'–'}</td><td>${fmtMs(s.totalTime)}</td></tr>`).join(''); els.sessionsTableWrap.innerHTML = `<table><thead><tr><th>Date</th><th>Mode</th><th>Cards</th><th>Correct</th><th>Mistakes</th><th>Accuracy</th><th>Avg time</th><th>Total</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="muted">No sessions yet.</td></tr>'}</tbody></table>`; }
+  function renderSessionsCards(list){ const cards = list.slice(0,20).map(s=>{ const when = new Date(s.when).toLocaleString(); return `<div class="sess-card"><div class="sess-top"><div><strong>${s.accuracy}%</strong> • ${s.avgTime?fmtMs(s.avgTime):'–'} avg</div><div class="muted">${when}</div></div><div class="sess-meta"><span class="pill">${s.mode}${s.mode!=='infinite'?` • ${s.target}`:''}</span><span class="pill">Cards ${s.completed}</span><span class="pill">Good ${s.correct}</span><span class="pill">Miss ${s.mistakes}</span><span class="pill">Total ${fmtMs(s.totalTime)}</span></div></div>`; }).join(''); els.sessionsTableWrap.innerHTML = `<div class="sessions-cards">${cards || '<div class="muted">No sessions yet.</div>'}</div>`; }
+  function maybeRerenderSessions(){ const narrow = isNarrow(); if(state.isNarrow===null){ state.isNarrow = narrow; return; } if(narrow!==state.isNarrow){ state.isNarrow=narrow; renderSessions(); } }
+
+  function renderSummary(){ if(!state.lastSummary){ els.lastSummary.style.display='none'; return; } const s=state.lastSummary; els.lastSummary.style.display='block'; els.lastSummary.innerHTML = `<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap"><div><strong>Last session:</strong> ${new Date(s.when).toLocaleString()} — ${s.mode}${s.mode!=='infinite'?` (${s.target})`:''}</div><div class="pill">Accuracy <b>${s.accuracy}%</b> • Avg ${s.avgTime?fmtMs(s.avgTime):'–'} • Cards ${s.completed}</div></div>`; }
 
   // ---------- Summary overlay ----------
-  function showSummaryOverlay(s){ const html = `
-      <div class="grid2">
-        <div><div class="muted">Cards</div><div style="font-size:20px">${s.completed}</div></div>
-        <div><div class="muted">Accuracy</div><div style="font-size:20px">${s.accuracy}%</div></div>
-        <div><div class="muted">Correct</div><div style="font-size:20px">${s.correct}</div></div>
-        <div><div class="muted">Mistakes</div><div style="font-size:20px">${s.mistakes}</div></div>
-        <div><div class="muted">Avg time</div><div style="font-size:20px">${s.avgTime?fmtMs(s.avgTime):'-'}</div></div>
-        <div><div class="muted">Total time</div><div style="font-size:20px">${fmtMs(s.totalTime)}</div></div>
-      </div>
-      <div class="pill" style="margin-top:8px">${s.mode}${s.mode!=='infinite'?` • ${s.target} notes`:''}</div>`;
-    els.summaryBody.innerHTML = html; els.summaryOverlay.classList.add('open'); }
+  function showSummaryOverlay(s){ const html = `<div class="grid2"><div><div class="muted">Cards</div><div style="font-size:20px">${s.completed}</div></div><div><div class="muted">Accuracy</div><div style="font-size:20px">${s.accuracy}%</div></div><div><div class="muted">Correct</div><div style="font-size:20px">${s.correct}</div></div><div><div class="muted">Mistakes</div><div style="font-size:20px">${s.mistakes}</div></div><div><div class="muted">Avg time</div><div style="font-size:20px">${s.avgTime?fmtMs(s.avgTime):'–'}</div></div><div><div class="muted">Total time</div><div style="font-size:20px">${fmtMs(s.totalTime)}</div></div></div><div class="pill" style="margin-top:8px">${s.mode}${s.mode!=='infinite'?` • ${s.target} notes`:''}</div>`; els.summaryBody.innerHTML = html; els.summaryOverlay.classList.add('open'); }
   function hideSummaryOverlay(){ els.summaryOverlay.classList.remove('open'); }
 
   // ---------- Init & events ----------
   function applySettingsToUI(){ els.clef.value=state.settings.clef; els.range.value=state.settings.range; els.noteset.value=state.settings.noteset; }
   function onSettingsChanged(){ state.settings.clef=els.clef.value; state.settings.range=els.range.value; state.settings.noteset=els.noteset.value; persistSettings(); }
 
-  function init(){
-    loadSettings(); loadSessions(); loadStats(); loadPcStats();
-    applySettingsToUI(); buildKeyboard(); renderSessions(); renderSummary();
+  function chooseInitialView(){ if(state.sessions.length===0){ showView('landing'); } else { showView('home'); } }
+
+  function init(){ loadSettings(); loadSessions(); loadStats(); loadPcStats(); applySettingsToUI(); buildKeyboard(); renderSessions(); renderSummary(); state.isNarrow=isNarrow(); // landing
+    els.landingPlay.addEventListener('click', ()=>showView('config'));
+    els.landingAbout.addEventListener('click', ()=>{ els.landingAboutText.style.display = els.landingAboutText.style.display==='none'?'block':'none'; });
     // home
     els.goConfig.addEventListener('click', ()=>showView('config'));
-    els.sortAcc.addEventListener('click', ()=>renderSessions('acc'));
-    els.sortTime.addEventListener('click', ()=>renderSessions('time'));
-    els.clearSessions.addEventListener('click', ()=>{ if(confirm('Clear all stored sessions?')){ state.sessions=[]; saveSessions(); renderSessions(); } });
+    els.sortAcc.addEventListener('click', ()=>{ state.sessionsSort='acc'; renderSessions(); });
+    els.sortTime.addEventListener('click', ()=>{ state.sessionsSort='time'; renderSessions(); });
+    els.clearSessions.addEventListener('click', ()=>{ if(confirm('Clear all stored sessions?')){ state.sessions=[]; saveSessions(); renderSessions(); renderSummary(); } });
     // config
     els.backHome.addEventListener('click', ()=>showView('home'));
     els.sessionMode.addEventListener('change', ()=>{ els.customLenWrap.style.display = (els.sessionMode.value==='custom')? 'block' : 'none'; });
@@ -517,8 +397,8 @@
     // overlay
     els.sumHome.addEventListener('click', ()=>{ hideSummaryOverlay(); showView('home'); });
     els.sumAgain.addEventListener('click', ()=>{ const m = state.lastSummary? state.lastSummary.mode : 'default'; const t = state.lastSummary? state.lastSummary.target : 20; hideSummaryOverlay(); startSession(m, t); });
-    // start on home
-    showView('home');
+
+    chooseInitialView();
   }
 
   document.addEventListener('DOMContentLoaded', init);
